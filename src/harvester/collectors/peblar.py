@@ -29,7 +29,7 @@ EV interface
   30113  ChargeCurrentLimitActual  Current to vehicle  mA    uint32 (2 regs)
 
 Modbus input registers use function code 04.
-Addresses are 0-based PDU addresses (register number − 30001).
+Addresses are 0-based PDU addresses (register number - 30001).
 """
 
 from __future__ import annotations
@@ -40,9 +40,9 @@ import logging
 import struct
 from typing import ClassVar, Literal
 
+from pydantic import Field
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
-from pydantic import Field
 
 from harvester.collectors.base import BaseCollector
 from harvester.collectors.registry import register
@@ -100,7 +100,7 @@ class PeblarConfig(BaseMeterConfig):
         description="Modbus request timeout in seconds (default 10 s)",
     )
 
-    def create_collector(self) -> "PeblarCollector":  # noqa: F821
+    def create_collector(self) -> PeblarCollector:
         return PeblarCollector(self)
 
 
@@ -108,32 +108,133 @@ class PeblarConfig(BaseMeterConfig):
 # Collector
 # ---------------------------------------------------------------------------
 
-# fmt: off
+
 # Each entry: (metric_name, description, metric_type, scale_factor, phase_label)
 # scale_factor converts the raw register value to the canonical unit:
 #   current: mA → A (*0.001), energy: Wh → kWh (*0.001), power/voltage: no change.
 # phase_label: if set, this value is added as a "phase" label on the metric,
 #   allowing per-phase metrics to share a single metric name in Prometheus.
 _METRIC_DEFS: dict[str, tuple[str, str, MetricType, float, str | None]] = {
-    "energy_total":                ("peblar_energy_total_kwh",             "Lifetime energy delivered in kWh",                       MetricType.COUNTER,  0.001, None),
-    "session_energy":              ("peblar_session_energy_kwh",           "Energy delivered in the current/last session in kWh",     MetricType.GAUGE,    0.001, None),
-    "power_l1":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L1"),
-    "power_l2":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L2"),
-    "power_l3":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L3"),
-    "power_total":                 ("peblar_active_power_total_watts",     "Combined power on all phases in Watts",                  MetricType.GAUGE,    1.0,   None),
-    "voltage_l1":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L1"),
-    "voltage_l2":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L2"),
-    "voltage_l3":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L3"),
-    "current_l1":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L1"),
-    "current_l2":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L2"),
-    "current_l3":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L3"),
-    "wlan_rssi":                   ("peblar_wlan_rssi_dbm",                "WLAN signal strength in dBm",                            MetricType.GAUGE,    1.0,   None),
-    "cellular_rssi":               ("peblar_cellular_rssi_dbm",            "Cellular signal strength in dBm",                        MetricType.GAUGE,    1.0,   None),
-    "uptime":                      ("peblar_uptime_seconds",               "System uptime in seconds",                               MetricType.COUNTER,  1.0,   None),
-    "phase_count":                 ("peblar_phase_count",                  "Number of connected phases",                             MetricType.GAUGE,    1.0,   None),
-    "charge_current_limit_actual": ("peblar_charge_current_limit_amperes", "Actual charge current communicated to the vehicle in A", MetricType.GAUGE,    0.001, None),
+    "energy_total": (
+        "peblar_energy_total_kwh",
+        "Lifetime energy delivered in kWh",
+        MetricType.COUNTER,
+        0.001,
+        None,
+    ),
+    "session_energy": (
+        "peblar_session_energy_kwh",
+        "Energy delivered in the current/last session in kWh",
+        MetricType.GAUGE,
+        0.001,
+        None,
+    ),
+    "power_l1": (
+        "peblar_active_power_watts",
+        "Instant power in Watts",
+        MetricType.GAUGE,
+        1.0,
+        "L1",
+    ),
+    "power_l2": (
+        "peblar_active_power_watts",
+        "Instant power in Watts",
+        MetricType.GAUGE,
+        1.0,
+        "L2",
+    ),
+    "power_l3": (
+        "peblar_active_power_watts",
+        "Instant power in Watts",
+        MetricType.GAUGE,
+        1.0,
+        "L3",
+    ),
+    "power_total": (
+        "peblar_active_power_total_watts",
+        "Combined power on all phases in Watts",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "voltage_l1": (
+        "peblar_voltage_volts",
+        "Instant voltage in Volts",
+        MetricType.GAUGE,
+        1.0,
+        "L1",
+    ),
+    "voltage_l2": (
+        "peblar_voltage_volts",
+        "Instant voltage in Volts",
+        MetricType.GAUGE,
+        1.0,
+        "L2",
+    ),
+    "voltage_l3": (
+        "peblar_voltage_volts",
+        "Instant voltage in Volts",
+        MetricType.GAUGE,
+        1.0,
+        "L3",
+    ),
+    "current_l1": (
+        "peblar_current_amperes",
+        "Instant current in Amperes",
+        MetricType.GAUGE,
+        0.001,
+        "L1",
+    ),
+    "current_l2": (
+        "peblar_current_amperes",
+        "Instant current in Amperes",
+        MetricType.GAUGE,
+        0.001,
+        "L2",
+    ),
+    "current_l3": (
+        "peblar_current_amperes",
+        "Instant current in Amperes",
+        MetricType.GAUGE,
+        0.001,
+        "L3",
+    ),
+    "wlan_rssi": (
+        "peblar_wlan_rssi_dbm",
+        "WLAN signal strength in dBm",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "cellular_rssi": (
+        "peblar_cellular_rssi_dbm",
+        "Cellular signal strength in dBm",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "uptime": (
+        "peblar_uptime_seconds",
+        "System uptime in seconds",
+        MetricType.COUNTER,
+        1.0,
+        None,
+    ),
+    "phase_count": (
+        "peblar_phase_count",
+        "Number of connected phases",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "charge_current_limit_actual": (
+        "peblar_charge_current_limit_amperes",
+        "Actual charge current communicated to the vehicle in A",
+        MetricType.GAUGE,
+        0.001,
+        None,
+    ),
 }
-# fmt: on
 
 
 class PeblarCollector(BaseCollector):
@@ -144,7 +245,9 @@ class PeblarCollector(BaseCollector):
     that the Prometheus scrape endpoint is never blocked by a Modbus round-trip.
     """
 
-    _METRIC_DEFS: ClassVar[dict[str, tuple[str, str, MetricType, float, str | None]]] = _METRIC_DEFS
+    _METRIC_DEFS: ClassVar[
+        dict[str, tuple[str, str, MetricType, float, str | None]]
+    ] = _METRIC_DEFS
 
     def __init__(self, config: PeblarConfig) -> None:
         super().__init__(config.name, config)
@@ -181,14 +284,15 @@ class PeblarCollector(BaseCollector):
 
     async def connect(self) -> None:
         """Open the Modbus TCP connection and start the background poll task."""
-        logger.info("[%s] Connecting to Peblar at %s:%d", self.name, self.host, self.port)
+        logger.info(
+            "[%s] Connecting to Peblar at %s:%d", self.name, self.host, self.port
+        )
 
         self._client = AsyncModbusTcpClient(
             host=self.host,
             port=self.port,
             timeout=self._config.request_timeout,
         )
-
 
         connected = await self._client.connect()
         if not connected:
@@ -202,7 +306,9 @@ class PeblarCollector(BaseCollector):
         self._poll_task = asyncio.create_task(
             self._poll_loop(), name=f"peblar-poll-{self.name}"
         )
-        logger.info("[%s] Connected; poll interval %.1f s", self.name, self.poll_interval)
+        logger.info(
+            "[%s] Connected; poll interval %.1f s", self.name, self.poll_interval
+        )
 
     async def disconnect(self) -> None:
         """Cancel the background task and close the Modbus connection."""
@@ -232,8 +338,8 @@ class PeblarCollector(BaseCollector):
                 raise
             except ModbusException as exc:
                 logger.warning("[%s] Modbus error during poll: %s", self.name, exc)
-            except Exception as exc:  # noqa: BLE001
-                logger.exception("[%s] Unexpected error during poll: %s", self.name, exc)
+            except Exception:
+                logger.exception("[%s] Unexpected error during poll", self.name)
 
     async def _poll_once(self) -> None:
         """Read all input registers in one shot and update _last_data."""
@@ -269,36 +375,36 @@ class PeblarCollector(BaseCollector):
         """Read the full set of monitored registers and return a parsed dict."""
         data: dict[str, float] = {}
 
-        # ── Energy meter (30000–30027) ─────────────────────────────────────
-        # We read 28 registers in a single request covering 30000–30027.
+        # ── Energy meter (30000-30027) ─────────────────────────────────────
+        # We read 28 registers in a single request covering 30000-30027.
         regs = await self._read_input(30000, 28)
 
         # int64: 4 registers each
-        data["energy_total"]  = float(_to_int64(regs[0], regs[1], regs[2], regs[3]))
+        data["energy_total"] = float(_to_int64(regs[0], regs[1], regs[2], regs[3]))
         data["session_energy"] = float(_to_int64(regs[4], regs[5], regs[6], regs[7]))
 
-        # int32: 2 registers each; regs index = register_number − 30000
-        data["power_l1"]    = float(_to_int32(regs[8],  regs[9]))
-        data["power_l2"]    = float(_to_int32(regs[10], regs[11]))
-        data["power_l3"]    = float(_to_int32(regs[12], regs[13]))
+        # int32: 2 registers each; regs index = register_number - 30000
+        data["power_l1"] = float(_to_int32(regs[8], regs[9]))
+        data["power_l2"] = float(_to_int32(regs[10], regs[11]))
+        data["power_l3"] = float(_to_int32(regs[12], regs[13]))
         data["power_total"] = float(_to_int32(regs[14], regs[15]))
-        data["voltage_l1"]  = float(_to_int32(regs[16], regs[17]))
-        data["voltage_l2"]  = float(_to_int32(regs[18], regs[19]))
-        data["voltage_l3"]  = float(_to_int32(regs[20], regs[21]))
-        data["current_l1"]  = float(_to_int32(regs[22], regs[23]))
-        data["current_l2"]  = float(_to_int32(regs[24], regs[25]))
-        data["current_l3"]  = float(_to_int32(regs[26], regs[27]))
+        data["voltage_l1"] = float(_to_int32(regs[16], regs[17]))
+        data["voltage_l2"] = float(_to_int32(regs[18], regs[19]))
+        data["voltage_l3"] = float(_to_int32(regs[20], regs[21]))
+        data["current_l1"] = float(_to_int32(regs[22], regs[23]))
+        data["current_l2"] = float(_to_int32(regs[24], regs[25]))
+        data["current_l3"] = float(_to_int32(regs[26], regs[27]))
 
-        # ── System information (30086–30093) ───────────────────────────────
-        # 8 registers: 30086–30093
+        # ── System information (30086-30093) ───────────────────────────────
+        # 8 registers: 30086-30093
         sys_regs = await self._read_input(30086, 8)
 
-        data["wlan_rssi"]     = float(_to_int32(sys_regs[0], sys_regs[1]))
+        data["wlan_rssi"] = float(_to_int32(sys_regs[0], sys_regs[1]))
         data["cellular_rssi"] = float(_to_int32(sys_regs[2], sys_regs[3]))
-        data["uptime"]        = float(_to_uint32(sys_regs[4], sys_regs[5]))
-        data["phase_count"]   = float(sys_regs[6])  # uint16, single register
+        data["uptime"] = float(_to_uint32(sys_regs[4], sys_regs[5]))
+        data["phase_count"] = float(sys_regs[6])  # uint16, single register
 
-        # ── EV interface (30113–30114) ─────────────────────────────────────
+        # ── EV interface (30113 - 30114) ─────────────────────────────────────
         # ChargeCurrentLimitActual is uint32 at 30113, 2 regs
         ev_regs = await self._read_input(30113, 2)
         data["charge_current_limit_actual"] = float(_to_uint32(ev_regs[0], ev_regs[1]))
@@ -322,7 +428,13 @@ class PeblarCollector(BaseCollector):
         base_labels = {"source": self.name, "host": self.host, "device_type": "peblar"}
         metrics: list[Metric] = []
 
-        for key, (metric_name, description, metric_type, scale, phase) in self._METRIC_DEFS.items():
+        for key, (
+            metric_name,
+            description,
+            metric_type,
+            scale,
+            phase,
+        ) in self._METRIC_DEFS.items():
             raw = self._last_data.get(key)
             if raw is None:
                 continue
@@ -349,10 +461,10 @@ class PeblarCollector(BaseCollector):
     def get_status(self) -> dict:
         """Return a status dict for the /health endpoint."""
         return {
-            "name":          self.name,
-            "host":          self.host,
-            "port":          self.port,
-            "connected":     self._client is not None and self._client.connected,
-            "has_data":      self.is_ready,
+            "name": self.name,
+            "host": self.host,
+            "port": self.port,
+            "connected": self._client is not None and self._client.connected,
+            "has_data": self.is_ready,
             "poll_interval": self.poll_interval,
         }

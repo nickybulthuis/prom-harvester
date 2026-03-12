@@ -22,10 +22,9 @@ from functools import lru_cache
 
 # --- Trigger @register side-effects for all known collector modules ---
 from harvester.collectors import homewizard as _homewizard  # noqa: F401
-from harvester.collectors import youless as _youless  # noqa: F401
 from harvester.collectors import peblar as _peblar  # noqa: F401
-
-from harvester.configuration import Configuration, ConfigurationError, load_config
+from harvester.collectors import youless as _youless  # noqa: F401
+from harvester.configuration import Configuration, load_config
 from harvester.settings import get_settings
 
 logger = logging.getLogger(__name__)

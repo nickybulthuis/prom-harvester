@@ -81,7 +81,9 @@ class YoulessConfig(BaseMeterConfig):
     """Configuration for a YouLess LS120 energy monitor."""
 
     source: Literal["youless"] = "youless"
-    host: str = Field(..., min_length=1, description="Hostname or IP of the YouLess device")
+    host: str = Field(
+        ..., min_length=1, description="Hostname or IP of the YouLess device"
+    )
     password: str | None = Field(
         default=None,
         description="Device password (leave empty if no password is set on the device)",
@@ -115,7 +117,8 @@ class YoulessCollector(BaseCollector):
     _METRIC_DEFS: ClassVar[dict[str, tuple[str, str, MetricType]]] = {
         "pwr": (
             "youless_active_power_watts",
-            "Current power consumption/production in watts (negative = feeding to grid)",
+            "Current power consumption/production in watts "
+            "(negative = feeding to grid)",
             MetricType.GAUGE,
         ),
         "net": (
@@ -205,7 +208,9 @@ class YoulessCollector(BaseCollector):
         self._poll_task = asyncio.create_task(
             self._poll_loop(), name=f"{self.name}-poll"
         )
-        logger.info("[%s] Connected -- polling every %.1fs", self.name, self.poll_interval)
+        logger.info(
+            "[%s] Connected -- polling every %.1fs", self.name, self.poll_interval
+        )
 
     async def disconnect(self) -> None:
         """Stop the background task and close the HTTP session."""
@@ -233,14 +238,18 @@ class YoulessCollector(BaseCollector):
             except asyncio.CancelledError:
                 break
             except aiohttp.ClientResponseError as exc:
-                logger.error(
+                logger.exception(
                     "[%s] HTTP %s fetching %s -- retrying in %.1fs",
-                    self.name, exc.status, self.metrics_url, self.poll_interval,
+                    self.name,
+                    exc.status,
+                    self.metrics_url,
+                    self.poll_interval,
                 )
             except aiohttp.ClientError:
                 logger.exception(
                     "[%s] Request failed -- retrying in %.1fs",
-                    self.name, self.poll_interval,
+                    self.name,
+                    self.poll_interval,
                 )
 
     async def _fetch(self) -> dict:
@@ -250,7 +259,9 @@ class YoulessCollector(BaseCollector):
         We unwrap it and return the inner object.
         """
         if not self._session:
-            raise RuntimeError(f"[{self.name}] Session not initialised -- call connect() first")
+            raise RuntimeError(
+                f"[{self.name}] Session not initialised -- call connect() first"
+            )
 
         async with self._session.get(self.metrics_url) as response:
             response.raise_for_status()
@@ -300,9 +311,9 @@ class YoulessCollector(BaseCollector):
     def get_status(self) -> dict:
         """Return a status dict for the /health endpoint."""
         return {
-            "name":          self.name,
-            "host":          self.host,
-            "connected":     self._session is not None and not self._session.closed,
-            "has_data":      self.is_ready,
+            "name": self.name,
+            "host": self.host,
+            "connected": self._session is not None and not self._session.closed,
+            "has_data": self.is_ready,
             "poll_interval": self.poll_interval,
         }
