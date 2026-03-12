@@ -1,0 +1,48 @@
+# Compiled files
+*.o
+*.so
+*.dll
+
+# Logs and databases
+*.log
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+*.swp
+*.swo
+*.sln
+*.user
+*.idea/
+*.vscode/
+.env
+
+# Build directories
+build/
+dist/
+generator/output/
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.pytest_cache/
+*.egg-info/
+
+# Dependency directories
+node_modules/
+/.pass.json
+
+# Intellij projects
+*.iml
+
+# Specific files
+/configuration.yaml

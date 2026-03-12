@@ -1,0 +1,85 @@
+[project]
+name = "prom-harvester"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.13.3",
+    "prometheus-client>=0.24.1",
+    "pydantic-settings>=2.13.1",
+    "websockets>=16.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harvester"]
+
+[tool.pytest.ini_options]
+# Test what matters, not 100%.
+addopts = "--cov=harvester --cov-report html --cov-fail-under=95 --cov-branch --log-cli-level=INFO"
+log_cli = true
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    'A',  # flake8-builtins
+    'ASYNC', # https://docs.astral.sh/ruff/rules/#flake8-async-async
+    'B',  # flake8-bugbear
+    'BLE', # flake8-blind-except
+    'C4',  # unnecessary comprehensions, map()
+    'DTZ', # flake8-datetimez
+    'E',  # pycodestyle
+    'ERA',  # No commented out code
+    'EXE', # flake8-executable
+    'F',  # pyflakes
+    'FLY',  # flynt
+    'G',  # flake8-logging-format
+    'I',  # isort
+    'ICN', # https://github.com/joaopalmeiro/flake8-import-conventions
+    'LOG', # flake8-logging
+    'PERF', # perflint
+    'PIE', # https://pypi.org/project/flake8-pie/
+    'PLC',  # Pylint conventions
+    'PLE',  # Pylint error
+    'PLW',  # Pylint warnings
+    'PT',  # https://pypi.org/project/flake8-pytest-style/
+    'PTH',  # flake8 use pathlib
+    'RET', # https://pypi.org/project/flake8-return/
+    'RUF',  # Ruff rules
+    'S',  # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    'SIM',  # https://pypi.org/project/flake8-simplify/
+    'T',  # flake8-debugger
+    'TRY',  # tryceratops
+    'UP',  # pyupgrade
+    'W',  # pycodestyle
+    #'ARG',  # flake8 unused arguments (not really helpful, unused func args are common and ok)
+    #'D',  # pydocstyle (too much)
+    #'N',  # pep8-naming (too opinionated)
+    'NPY', # numpy
+    'PD', # pandas
+]
+
+ignore = ["ERA001", "TRY003"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+exclude = ['*_test.py', '*.ipynb']
