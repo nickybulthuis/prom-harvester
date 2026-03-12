@@ -521,8 +521,10 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "prometheus-client" },
+    { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pymodbus" },
+    { name = "pyyaml" },
     { name = "websockets" },
 ]
 
@@ -538,8 +540,10 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.3" },
     { name = "prometheus-client", specifier = ">=0.24.1" },
+    { name = "pydantic", specifier = ">=2.11" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pymodbus", specifier = ">=3.12.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "websockets", specifier = ">=16.0" },
 ]
 

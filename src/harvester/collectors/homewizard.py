@@ -51,6 +51,7 @@ class MetricMapping:
     name: str
     description: str
     metric_type: MetricType = MetricType.GAUGE
+    phase: str | None = None  # e.g. "L1", "L2", "L3" — adds a phase label when set
 
 
 # ---------------------------------------------------------------------------
@@ -82,183 +83,51 @@ class HomewizardP1Collector(BaseCollector):
 
     METRIC_MAPPINGS: ClassVar[tuple[MetricMapping, ...]] = (
         # --- Power (Watts) ---
-        MetricMapping(
-            "power_w", "homewizard_active_power_watts", "Active power (total) in watts"
-        ),
-        MetricMapping(
-            "power_l1_w", "homewizard_active_power_l1_watts", "Active power L1 in watts"
-        ),
-        MetricMapping(
-            "power_l2_w", "homewizard_active_power_l2_watts", "Active power L2 in watts"
-        ),
-        MetricMapping(
-            "power_l3_w", "homewizard_active_power_l3_watts", "Active power L3 in watts"
-        ),
+        MetricMapping("power_w",    "homewizard_active_power_total_watts", "Active power (total) in watts"),
+        MetricMapping("power_l1_w", "homewizard_active_power_watts", "Active power in watts", phase="L1"),
+        MetricMapping("power_l2_w", "homewizard_active_power_watts", "Active power in watts", phase="L2"),
+        MetricMapping("power_l3_w", "homewizard_active_power_watts", "Active power in watts", phase="L3"),
         # --- Energy import (kWh) ---
-        MetricMapping(
-            "energy_import_kwh",
-            "homewizard_energy_import_kwh",
-            "Total energy imported",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "energy_import_t1_kwh",
-            "homewizard_energy_import_t1_kwh",
-            "Energy imported tariff 1",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "energy_import_t2_kwh",
-            "homewizard_energy_import_t2_kwh",
-            "Energy imported tariff 2",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("energy_import_kwh",    "homewizard_energy_import_kwh",    "Total energy imported",    MetricType.COUNTER),
+        MetricMapping("energy_import_t1_kwh", "homewizard_energy_import_t1_kwh", "Energy imported tariff 1", MetricType.COUNTER),
+        MetricMapping("energy_import_t2_kwh", "homewizard_energy_import_t2_kwh", "Energy imported tariff 2", MetricType.COUNTER),
         # Legacy import keys
-        MetricMapping(
-            "total_power_import_kwh",
-            "homewizard_total_power_import_kwh",
-            "Total power imported (legacy)",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "total_power_import_t1_kwh",
-            "homewizard_total_power_import_t1_kwh",
-            "Total power imported T1 (legacy)",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "total_power_import_t2_kwh",
-            "homewizard_total_power_import_t2_kwh",
-            "Total power imported T2 (legacy)",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("total_power_import_kwh",    "homewizard_total_power_import_kwh",    "Total power imported (legacy)",    MetricType.COUNTER),
+        MetricMapping("total_power_import_t1_kwh", "homewizard_total_power_import_t1_kwh", "Total power imported T1 (legacy)", MetricType.COUNTER),
+        MetricMapping("total_power_import_t2_kwh", "homewizard_total_power_import_t2_kwh", "Total power imported T2 (legacy)", MetricType.COUNTER),
         # --- Energy export (kWh) ---
-        MetricMapping(
-            "energy_export_kwh",
-            "homewizard_energy_export_kwh",
-            "Total energy exported",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "energy_export_t1_kwh",
-            "homewizard_energy_export_t1_kwh",
-            "Energy exported tariff 1",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "energy_export_t2_kwh",
-            "homewizard_energy_export_t2_kwh",
-            "Energy exported tariff 2",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("energy_export_kwh",    "homewizard_energy_export_kwh",    "Total energy exported",    MetricType.COUNTER),
+        MetricMapping("energy_export_t1_kwh", "homewizard_energy_export_t1_kwh", "Energy exported tariff 1", MetricType.COUNTER),
+        MetricMapping("energy_export_t2_kwh", "homewizard_energy_export_t2_kwh", "Energy exported tariff 2", MetricType.COUNTER),
         # Legacy export keys
-        MetricMapping(
-            "total_power_export_kwh",
-            "homewizard_total_power_export_kwh",
-            "Total power exported (legacy)",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "total_power_export_t1_kwh",
-            "homewizard_total_power_export_t1_kwh",
-            "Total power exported T1 (legacy)",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "total_power_export_t2_kwh",
-            "homewizard_total_power_export_t2_kwh",
-            "Total power exported T2 (legacy)",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("total_power_export_kwh",    "homewizard_total_power_export_kwh",    "Total power exported (legacy)",    MetricType.COUNTER),
+        MetricMapping("total_power_export_t1_kwh", "homewizard_total_power_export_t1_kwh", "Total power exported T1 (legacy)", MetricType.COUNTER),
+        MetricMapping("total_power_export_t2_kwh", "homewizard_total_power_export_t2_kwh", "Total power exported T2 (legacy)", MetricType.COUNTER),
         # --- Voltage (Volts) ---
-        MetricMapping(
-            "voltage_l1_v", "homewizard_voltage_l1_volts", "Voltage L1 in volts"
-        ),
-        MetricMapping(
-            "voltage_l2_v", "homewizard_voltage_l2_volts", "Voltage L2 in volts"
-        ),
-        MetricMapping(
-            "voltage_l3_v", "homewizard_voltage_l3_volts", "Voltage L3 in volts"
-        ),
+        MetricMapping("voltage_l1_v", "homewizard_voltage_volts", "Voltage in volts", phase="L1"),
+        MetricMapping("voltage_l2_v", "homewizard_voltage_volts", "Voltage in volts", phase="L2"),
+        MetricMapping("voltage_l3_v", "homewizard_voltage_volts", "Voltage in volts", phase="L3"),
         # --- Current (Amps) ---
-        MetricMapping(
-            "current_a", "homewizard_current_total_amps", "Total current in amps"
-        ),
-        MetricMapping(
-            "current_l1_a", "homewizard_current_l1_amps", "Current L1 in amps"
-        ),
-        MetricMapping(
-            "current_l2_a", "homewizard_current_l2_amps", "Current L2 in amps"
-        ),
-        MetricMapping(
-            "current_l3_a", "homewizard_current_l3_amps", "Current L3 in amps"
-        ),
+        MetricMapping("current_a",    "homewizard_current_total_amps", "Total current in amps"),
+        MetricMapping("current_l1_a", "homewizard_current_amps", "Current in amps", phase="L1"),
+        MetricMapping("current_l2_a", "homewizard_current_amps", "Current in amps", phase="L2"),
+        MetricMapping("current_l3_a", "homewizard_current_amps", "Current in amps", phase="L3"),
         # --- Tariff ---
         MetricMapping("tariff", "homewizard_active_tariff", "Active tariff (1 or 2)"),
         # --- Voltage sags ---
-        MetricMapping(
-            "voltage_sag_l1_count",
-            "homewizard_voltage_sag_l1_total",
-            "Voltage sag count L1",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "voltage_sag_l2_count",
-            "homewizard_voltage_sag_l2_total",
-            "Voltage sag count L2",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "voltage_sag_l3_count",
-            "homewizard_voltage_sag_l3_total",
-            "Voltage sag count L3",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("voltage_sag_l1_count", "homewizard_voltage_sag_total", "Voltage sag count", MetricType.COUNTER, phase="L1"),
+        MetricMapping("voltage_sag_l2_count", "homewizard_voltage_sag_total", "Voltage sag count", MetricType.COUNTER, phase="L2"),
+        MetricMapping("voltage_sag_l3_count", "homewizard_voltage_sag_total", "Voltage sag count", MetricType.COUNTER, phase="L3"),
         # --- Voltage swells ---
-        MetricMapping(
-            "voltage_swell_l1_count",
-            "homewizard_voltage_swell_l1_total",
-            "Voltage swell count L1",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "voltage_swell_l2_count",
-            "homewizard_voltage_swell_l2_total",
-            "Voltage swell count L2",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "voltage_swell_l3_count",
-            "homewizard_voltage_swell_l3_total",
-            "Voltage swell count L3",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("voltage_swell_l1_count", "homewizard_voltage_swell_total", "Voltage swell count", MetricType.COUNTER, phase="L1"),
+        MetricMapping("voltage_swell_l2_count", "homewizard_voltage_swell_total", "Voltage swell count", MetricType.COUNTER, phase="L2"),
+        MetricMapping("voltage_swell_l3_count", "homewizard_voltage_swell_total", "Voltage swell count", MetricType.COUNTER, phase="L3"),
         # --- Power failures ---
-        MetricMapping(
-            "any_power_fail_count",
-            "homewizard_power_fail_any_total",
-            "Power failures (any duration)",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "long_power_fail_count",
-            "homewizard_power_fail_long_total",
-            "Long power failures",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("any_power_fail_count",  "homewizard_power_fail_any_total",  "Power failures (any duration)", MetricType.COUNTER),
+        MetricMapping("long_power_fail_count", "homewizard_power_fail_long_total", "Long power failures",           MetricType.COUNTER),
         # --- Gas & water (legacy direct keys) ---
-        MetricMapping(
-            "total_gas_m3",
-            "homewizard_gas_total_m3",
-            "Total gas usage in m³",
-            MetricType.COUNTER,
-        ),
-        MetricMapping(
-            "total_water_m3",
-            "homewizard_water_total_m3",
-            "Total water usage in m³",
-            MetricType.COUNTER,
-        ),
+        MetricMapping("total_gas_m3",   "homewizard_gas_total_m3",   "Total gas usage in m³",   MetricType.COUNTER),
+        MetricMapping("total_water_m3", "homewizard_water_total_m3", "Total water usage in m³", MetricType.COUNTER),
     )
 
     def __init__(self, config: HomewizardP1Config) -> None:
@@ -362,9 +231,7 @@ class HomewizardP1Collector(BaseCollector):
                 self._latest_data = data.get("data", {})
                 logger.debug("[%s] Measurement received", self.name)
             case "error":
-                logger.error(
-                    "[%s] Server error: %s", self.name, data.get("data", "unknown")
-                )
+                logger.error("[%s] Server error: %s", self.name, data.get("data", "unknown"))
             case unknown:
                 logger.warning("[%s] Unknown message type: %s", self.name, unknown)
 
@@ -380,10 +247,7 @@ class HomewizardP1Collector(BaseCollector):
                     break
                 logger.warning(
                     "[%s] Connection closed (code=%s reason=%s) — retrying in %ss",
-                    self.name,
-                    exc.code,
-                    exc.reason,
-                    self.RECONNECT_DELAY,
+                    self.name, exc.code, exc.reason, self.RECONNECT_DELAY,
                 )
                 await asyncio.sleep(self.RECONNECT_DELAY)
                 if self._connected:
@@ -407,7 +271,7 @@ class HomewizardP1Collector(BaseCollector):
             logger.debug("[%s] No data yet", self.name)
             return []
 
-        base_labels = {"source": self.name, "host": self.host}
+        base_labels = {"source": self.name, "host": self.host, "device_type": "homewizard_p1"}
         metrics: list[Metric] = []
 
         self._collect_mapped_metrics(base_labels, metrics)
@@ -425,11 +289,12 @@ class HomewizardP1Collector(BaseCollector):
             if raw is None:
                 continue
             try:
+                labels = {**base_labels, "phase": mapping.phase} if mapping.phase else base_labels
                 out.append(
                     Metric(
                         name=mapping.name,
                         value=float(raw),
-                        labels=base_labels,
+                        labels=labels,
                         description=mapping.description,
                         metric_type=mapping.metric_type,
                     )
@@ -457,38 +322,27 @@ class HomewizardP1Collector(BaseCollector):
 
             match device_type:
                 case "gas_meter":
-                    name = "homewizard_external_gas_total_m3"
-                    desc = f"External gas meter reading in {unit}"
+                    name  = "homewizard_external_gas_total_m3"
+                    desc  = f"External gas meter reading in {unit}"
                     mtype = MetricType.COUNTER
                 case "water_meter":
-                    name = "homewizard_external_water_total_m3"
-                    desc = f"External water meter reading in {unit}"
+                    name  = "homewizard_external_water_total_m3"
+                    desc  = f"External water meter reading in {unit}"
                     mtype = MetricType.COUNTER
                 case _:
-                    safe = device_type.replace("-", "_").replace(" ", "_")
-                    name = f"homewizard_external_{safe}_value"
-                    desc = f"External {device_type} reading in {unit}"
+                    safe  = device_type.replace("-", "_").replace(" ", "_")
+                    name  = f"homewizard_external_{safe}_value"
+                    desc  = f"External {device_type} reading in {unit}"
                     mtype = MetricType.GAUGE
-                    logger.info(
-                        "[%s] Unknown external device type: %s", self.name, device_type
-                    )
+                    logger.info("[%s] Unknown external device type: %s", self.name, device_type)
 
             try:
-                out.append(
-                    Metric(
-                        name=name,
-                        value=float(raw),
-                        labels=device_labels,
-                        description=desc,
-                        metric_type=mtype,
-                    )
-                )
+                out.append(Metric(name=name, value=float(raw), labels=device_labels,
+                                  description=desc, metric_type=mtype))
             except (ValueError, TypeError):
                 logger.warning(
                     "[%s] Cannot convert external device %s=%r to float",
-                    self.name,
-                    device_type,
-                    raw,
+                    self.name, device_type, raw,
                 )
 
     def _collect_meter_info(
@@ -502,11 +356,9 @@ class HomewizardP1Collector(BaseCollector):
                 value=1,
                 labels={
                     **base_labels,
-                    "unique_id": str(self._latest_data.get("unique_id", "")),
-                    "meter_model": str(self._latest_data.get("meter_model", "")),
-                    "protocol_version": str(
-                        self._latest_data.get("protocol_version", "")
-                    ),
+                    "unique_id":        str(self._latest_data.get("unique_id", "")),
+                    "meter_model":      str(self._latest_data.get("meter_model", "")),
+                    "protocol_version": str(self._latest_data.get("protocol_version", "")),
                 },
                 description="HomeWizard P1 meter information",
                 metric_type=MetricType.GAUGE,
@@ -520,11 +372,11 @@ class HomewizardP1Collector(BaseCollector):
     def get_status(self) -> dict:
         """Return a status dict for the ``/health`` endpoint."""
         return {
-            "name": self.name,
-            "host": self.host,
-            "connected": self.is_connected,
-            "has_data": self.is_ready,
-            "metrics_count": len(self._latest_data),
-            "meter_model": self._latest_data.get("meter_model", "unknown"),
+            "name":             self.name,
+            "host":             self.host,
+            "connected":        self.is_connected,
+            "has_data":         self.is_ready,
+            "metrics_count":    len(self._latest_data),
+            "meter_model":      self._latest_data.get("meter_model", "unknown"),
             "protocol_version": self._latest_data.get("protocol_version", "unknown"),
         }

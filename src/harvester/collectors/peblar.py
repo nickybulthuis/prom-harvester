@@ -109,28 +109,29 @@ class PeblarConfig(BaseMeterConfig):
 # ---------------------------------------------------------------------------
 
 # fmt: off
-# Each entry: (metric_name, description, metric_type, scale_factor)
+# Each entry: (metric_name, description, metric_type, scale_factor, phase_label)
 # scale_factor converts the raw register value to the canonical unit:
 #   current: mA → A (*0.001), energy: Wh → kWh (*0.001), power/voltage: no change.
-# Metric names are prefixed with "peblar_" to match the other collectors.
-_METRIC_DEFS: dict[str, tuple[str, str, MetricType, float]] = {
-    "energy_total":                ("peblar_energy_total_kwh",              "Lifetime energy delivered in kWh",                         MetricType.COUNTER,  0.001),
-    "session_energy":              ("peblar_session_energy_kwh",            "Energy delivered in the current/last session in kWh",       MetricType.GAUGE,    0.001),
-    "power_l1":                    ("peblar_active_power_l1_watts",         "Instant power on L1 in Watts",                              MetricType.GAUGE,    1.0),
-    "power_l2":                    ("peblar_active_power_l2_watts",         "Instant power on L2 in Watts",                              MetricType.GAUGE,    1.0),
-    "power_l3":                    ("peblar_active_power_l3_watts",         "Instant power on L3 in Watts",                              MetricType.GAUGE,    1.0),
-    "power_total":                 ("peblar_active_power_total_watts",      "Combined power on all phases in Watts",                     MetricType.GAUGE,    1.0),
-    "voltage_l1":                  ("peblar_voltage_l1_volts",              "Instant voltage on L1 in Volts",                            MetricType.GAUGE,    1.0),
-    "voltage_l2":                  ("peblar_voltage_l2_volts",              "Instant voltage on L2 in Volts",                            MetricType.GAUGE,    1.0),
-    "voltage_l3":                  ("peblar_voltage_l3_volts",              "Instant voltage on L3 in Volts",                            MetricType.GAUGE,    1.0),
-    "current_l1":                  ("peblar_current_l1_amperes",            "Instant current on L1 in Amperes",                         MetricType.GAUGE,    0.001),
-    "current_l2":                  ("peblar_current_l2_amperes",            "Instant current on L2 in Amperes",                         MetricType.GAUGE,    0.001),
-    "current_l3":                  ("peblar_current_l3_amperes",            "Instant current on L3 in Amperes",                         MetricType.GAUGE,    0.001),
-    "wlan_rssi":                   ("peblar_wlan_rssi_dbm",                 "WLAN signal strength in dBm",                              MetricType.GAUGE,    1.0),
-    "cellular_rssi":               ("peblar_cellular_rssi_dbm",             "Cellular signal strength in dBm",                          MetricType.GAUGE,    1.0),
-    "uptime":                      ("peblar_uptime_seconds",                "System uptime in seconds",                                  MetricType.COUNTER,  1.0),
-    "phase_count":                 ("peblar_phase_count",                   "Number of connected phases",                                MetricType.GAUGE,    1.0),
-    "charge_current_limit_actual": ("peblar_charge_current_limit_amperes",  "Actual charge current communicated to the vehicle in A",    MetricType.GAUGE,    0.001),
+# phase_label: if set, this value is added as a "phase" label on the metric,
+#   allowing per-phase metrics to share a single metric name in Prometheus.
+_METRIC_DEFS: dict[str, tuple[str, str, MetricType, float, str | None]] = {
+    "energy_total":                ("peblar_energy_total_kwh",             "Lifetime energy delivered in kWh",                       MetricType.COUNTER,  0.001, None),
+    "session_energy":              ("peblar_session_energy_kwh",           "Energy delivered in the current/last session in kWh",     MetricType.GAUGE,    0.001, None),
+    "power_l1":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L1"),
+    "power_l2":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L2"),
+    "power_l3":                    ("peblar_active_power_watts",           "Instant power in Watts",                                 MetricType.GAUGE,    1.0,   "L3"),
+    "power_total":                 ("peblar_active_power_total_watts",     "Combined power on all phases in Watts",                  MetricType.GAUGE,    1.0,   None),
+    "voltage_l1":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L1"),
+    "voltage_l2":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L2"),
+    "voltage_l3":                  ("peblar_voltage_volts",                "Instant voltage in Volts",                               MetricType.GAUGE,    1.0,   "L3"),
+    "current_l1":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L1"),
+    "current_l2":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L2"),
+    "current_l3":                  ("peblar_current_amperes",              "Instant current in Amperes",                             MetricType.GAUGE,    0.001, "L3"),
+    "wlan_rssi":                   ("peblar_wlan_rssi_dbm",                "WLAN signal strength in dBm",                            MetricType.GAUGE,    1.0,   None),
+    "cellular_rssi":               ("peblar_cellular_rssi_dbm",            "Cellular signal strength in dBm",                        MetricType.GAUGE,    1.0,   None),
+    "uptime":                      ("peblar_uptime_seconds",               "System uptime in seconds",                               MetricType.COUNTER,  1.0,   None),
+    "phase_count":                 ("peblar_phase_count",                  "Number of connected phases",                             MetricType.GAUGE,    1.0,   None),
+    "charge_current_limit_actual": ("peblar_charge_current_limit_amperes", "Actual charge current communicated to the vehicle in A", MetricType.GAUGE,    0.001, None),
 }
 # fmt: on
 
@@ -143,7 +144,7 @@ class PeblarCollector(BaseCollector):
     that the Prometheus scrape endpoint is never blocked by a Modbus round-trip.
     """
 
-    _METRIC_DEFS: ClassVar = _METRIC_DEFS
+    _METRIC_DEFS: ClassVar[dict[str, tuple[str, str, MetricType, float, str | None]]] = _METRIC_DEFS
 
     def __init__(self, config: PeblarConfig) -> None:
         super().__init__(config.name, config)
@@ -318,19 +319,21 @@ class PeblarCollector(BaseCollector):
             logger.debug("[%s] No data yet", self.name)
             return []
 
-        base_labels = {"source": self.name, "host": self.host}
+        base_labels = {"source": self.name, "host": self.host, "device_type": "peblar"}
         metrics: list[Metric] = []
 
-        for key, (metric_name, description, metric_type, scale) in self._METRIC_DEFS.items():
+        for key, (metric_name, description, metric_type, scale, phase) in self._METRIC_DEFS.items():
             raw = self._last_data.get(key)
             if raw is None:
                 continue
+
+            labels = {**base_labels, "phase": phase} if phase else base_labels
 
             metrics.append(
                 Metric(
                     name=metric_name,
                     value=raw * scale,
-                    labels=base_labels,
+                    labels=labels,
                     description=description,
                     metric_type=metric_type,
                 )

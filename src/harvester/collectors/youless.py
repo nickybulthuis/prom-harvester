@@ -271,7 +271,7 @@ class YoulessCollector(BaseCollector):
             logger.debug("[%s] No data yet", self.name)
             return []
 
-        base_labels = {"source": self.name, "host": self.host}
+        base_labels = {"source": self.name, "host": self.host, "device_type": "youless"}
         metrics: list[Metric] = []
 
         for key, (metric_name, description, metric_type) in self._METRIC_DEFS.items():
