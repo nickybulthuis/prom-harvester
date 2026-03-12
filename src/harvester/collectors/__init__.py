@@ -4,6 +4,12 @@ Importing this package has a deliberate side-effect: it imports every known
 collector module, which causes their ``@register`` decorators to run and
 populate the registry before :func:`build_meter_config_union` is called.
 
+Registered collectors
+---------------------
+- :mod:`harvester.collectors.homewizard` — HomeWizard P1 (WebSocket)
+- :mod:`harvester.collectors.youless`    — YouLess LS120 (HTTP poll)
+- :mod:`harvester.collectors.peblar`     — Peblar Home EV charger (Modbus TCP)
+
 To add a new collector:
 1. Create ``harvester/collectors/mydevice.py`` with a ``@register`` config class.
 2. Add ``from harvester.collectors import mydevice as _mydevice`` below.
@@ -16,7 +22,10 @@ from functools import lru_cache
 
 # --- Trigger @register side-effects for all known collector modules ---
 from harvester.collectors import homewizard as _homewizard  # noqa: F401
-from harvester.configuration import Configuration, load_config
+from harvester.collectors import youless as _youless  # noqa: F401
+from harvester.collectors import peblar as _peblar  # noqa: F401
+
+from harvester.configuration import Configuration, ConfigurationError, load_config
 from harvester.settings import get_settings
 
 logger = logging.getLogger(__name__)
