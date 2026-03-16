@@ -76,6 +76,26 @@ def _to_uint32(high: int, low: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# EV interface helpers
+# ---------------------------------------------------------------------------
+
+# CpState is stored as an ASCII char in the low byte of a uint16.
+# Map the char to a numeric value so it can be exposed as a Gauge.
+# Prometheus can't store strings, so we encode the state as an integer
+# and document the mapping here. Use a Grafana value mapping to display
+# human-readable labels in dashboards.
+_CP_STATE_MAP: dict[str, float] = {
+    "A": 0,  # No EV connected
+    "B": 1,  # EV connected, suspended
+    "C": 2,  # EV connected, charging
+    "D": 3,  # EV connected, charging + ventilation requested
+    "E": 4,  # Error (short to PE or powered off)
+    "F": 5,  # Fault
+    "I": 6,  # Invalid CP level
+    "U": 7,  # Unknown
+}
+
+# ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
@@ -232,6 +252,28 @@ _METRIC_DEFS: dict[str, tuple[str, str, MetricType, float, str | None]] = {
         "Actual charge current communicated to the vehicle in A",
         MetricType.GAUGE,
         0.001,
+        None,
+    ),
+    "cp_state": (
+        "peblar_cp_state",
+        "Control Pilot state (0=A/no EV, 1=B/suspended, 2=C/charging, "
+        "3=D/vent, 4=E/error, 5=F/fault, 6=I/invalid, 7=U/unknown)",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "lock_state": (
+        "peblar_lock_state",
+        "Socket lock state (0=unlocked, 1=locked)",
+        MetricType.GAUGE,
+        1.0,
+        None,
+    ),
+    "charge_current_limit_source": (
+        "peblar_charge_current_limit_source",
+        "Active charge current limiting source (see Peblar docs for enum values)",
+        MetricType.GAUGE,
+        1.0,
         None,
     ),
 }
@@ -404,10 +446,18 @@ class PeblarCollector(BaseCollector):
         data["uptime"] = float(_to_uint32(sys_regs[4], sys_regs[5]))
         data["phase_count"] = float(sys_regs[6])  # uint16, single register
 
-        # ── EV interface (30113 - 30114) ─────────────────────────────────────
-        # ChargeCurrentLimitActual is uint32 at 30113, 2 regs
-        ev_regs = await self._read_input(30113, 2)
-        data["charge_current_limit_actual"] = float(_to_uint32(ev_regs[0], ev_regs[1]))
+        # ── EV interface (30110-30114) ─────────────────────────────────────
+        # Read 5 regs in one request: 30110 CpState, 30111 LockState,
+        # 30112 ChargeCurrentLimitSource, 30113-30114 ChargeCurrentLimitActual
+        ev_regs = await self._read_input(30110, 5)
+
+        # CpState: ASCII char in the low byte of a uint16
+        cp_char = chr(ev_regs[0] & 0xFF)
+        data["cp_state"] = _CP_STATE_MAP.get(cp_char, 7.0)  # default to Unknown
+
+        data["lock_state"] = float(ev_regs[1])
+        data["charge_current_limit_source"] = float(ev_regs[2])
+        data["charge_current_limit_actual"] = float(_to_uint32(ev_regs[3], ev_regs[4]))
 
         return data
 
