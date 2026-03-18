@@ -45,9 +45,9 @@ configuration:
 Topics that have not yet received a message are omitted from the output
 (they do not appear in /metrics at all) until the first message arrives.
 
-Message payloads are expected to be plain numeric strings (e.g. ``"1234.5"``
-or ``"1234"``) and are parsed as float.  Non-numeric payloads are logged as
-a warning and ignored.
+Message payloads can be plain numeric strings (``"1234.5"``), boolean
+strings (``"true"`` / ``"false"`` → ``1.0`` / ``0.0``), or JSON objects
+addressed via ``json_path``.  Unrecognised payloads are logged and ignored.
 """
 
 from __future__ import annotations
@@ -68,6 +68,45 @@ from harvester.models import BaseMeterConfig, Metric, MetricType
 from harvester.models.config import StrictModel
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Payload parsing
+# ---------------------------------------------------------------------------
+
+
+def _to_float(
+    value: object, topic: str, json_path: str | None, collector_name: str
+) -> float | None:
+    """Convert a payload value (str, int, float, or bool) to float.
+
+    - ``True``  → ``1.0``
+    - ``False`` → ``0.0``
+    - ``"true"`` / ``"false"`` (case-insensitive) → ``1.0`` / ``0.0``
+    - Any numeric string or number → ``float(value)``
+    - Anything else → ``None`` (logged as a warning)
+    """
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip().lower()
+        if stripped == "true":
+            return 1.0
+        if stripped == "false":
+            return 0.0
+        try:
+            return float(stripped)
+        except ValueError:
+            pass
+
+    location = f"{topic}[{json_path}]" if json_path else topic
+    logger.warning(
+        "[%s] Cannot convert %r to float on %s — ignoring",
+        collector_name, value, location,
+    )
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +136,13 @@ class MqttMetricConfig(StrictModel):
         description=(
             "Dot-separated path into a JSON payload, e.g. 'DS18B20-1.Temperature'. "
             "Leave empty for plain numeric payloads."
+        ),
+    )
+    extra_labels: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Additional static labels to attach to this metric, e.g. "
+            "'{phase: L1}' to distinguish per-phase topics that share a metric name."
         ),
     )
 
@@ -147,6 +193,7 @@ class _CachedValue:
     description: str
     metric_type: MetricType
     topic: str = ""  # original topic (for the label)
+    extra_labels: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +353,7 @@ class MqttCollector(BaseCollector):
                 description=metric_config.description,
                 metric_type=metric_config.metric_type,
                 topic=topic,
+                extra_labels=metric_config.extra_labels,
             )
             logger.debug(
                 "[%s] %s%s = %s",
@@ -323,8 +371,11 @@ class MqttCollector(BaseCollector):
     ) -> float | None:
         """Extract a float value from a raw payload string.
 
-        If ``json_path`` is set the payload is parsed as JSON and the path
-        (dot-separated keys) is traversed to find the value.
+        Supported payload formats:
+        - Plain numeric string: ``"19.4"``
+        - Boolean string: ``"true"`` / ``"false"`` → ``1.0`` / ``0.0``
+        - JSON object with a dot-separated ``json_path`` to a numeric or
+          boolean leaf value.
         """
         import json  # noqa: PLC0415 — lazy import, json is stdlib
 
@@ -347,24 +398,9 @@ class MqttCollector(BaseCollector):
                     return None
                 node = node[key]
 
-            try:
-                return float(node)  # type: ignore[arg-type]
-            except (ValueError, TypeError):
-                logger.warning(
-                    "[%s] Cannot convert %r to float (path=%s, topic=%s)",
-                    self.name, node, json_path, topic,
-                )
-                return None
+            return _to_float(node, topic, json_path, self.name)
 
-        # Plain numeric payload
-        try:
-            return float(raw.strip())
-        except ValueError:
-            logger.warning(
-                "[%s] Non-numeric payload on %s: %r — ignoring",
-                self.name, topic, raw,
-            )
-            return None
+        return _to_float(raw.strip(), topic, None, self.name)
 
     # ------------------------------------------------------------------
     # Collect
@@ -392,7 +428,7 @@ class MqttCollector(BaseCollector):
                 Metric(
                     name=cached.metric_name,
                     value=cached.value,
-                    labels={**base_labels, "topic": cached.topic},
+                    labels={**base_labels, "topic": cached.topic, **cached.extra_labels},
                     description=cached.description or cached.metric_name,
                     metric_type=cached.metric_type,
                 )
