@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.13.3",
+    "aiomqtt>=2.5.1",
     "prometheus-client>=0.24.1",
     "pydantic>=2.11",
     "pydantic-settings>=2.13.1",

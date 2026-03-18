@@ -24,6 +24,7 @@ from functools import lru_cache
 from harvester.collectors import homewizard as _homewizard  # noqa: F401
 from harvester.collectors import peblar as _peblar  # noqa: F401
 from harvester.collectors import youless as _youless  # noqa: F401
+from harvester.collectors import mqtt as _mqtt  # noqa: F401
 from harvester.configuration import Configuration, load_config
 from harvester.settings import get_settings
 
